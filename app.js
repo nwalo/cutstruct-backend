@@ -8,7 +8,7 @@ const app = express()
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
-app.post('/newsletter', function (req, res) {
+app.post('/newsletter-signup', function (req, res) {
   const email = req.body.email_reg
   const data = {
     members: [
