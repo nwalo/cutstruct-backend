@@ -5,9 +5,13 @@ const https = require('https')
 const cors = require('cors')
 
 const app = express()
+app.use(cors())
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
-app.use(cors())
+
+app.get('/', (req, res) => {
+  res.send('BLARKMATE SERVER IS RUNNING ... ')
+})
 
 app.post('/newsletter-signup', function (req, res) {
   const email = req.body.email_reg
