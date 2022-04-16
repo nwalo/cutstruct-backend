@@ -38,10 +38,10 @@ app.post('/newsletter-signup', function (req, res) {
   const request = https.request(url, options, function (response) {
     if (response.statusCode === 200) {
       console.log('success')
-      // res.send('success, user added to mail chimp')
+      res.send(response.statusCode)
     } else {
       console.log('error')
-      // res.send('error, unable to complete request')
+      res.send(response.statusCode)
     }
 
     console.log(response.statusCode)
@@ -77,7 +77,7 @@ app.post('/newsletter', function (req, res) {
   const request = https.request(url, options, function (response) {
     if (response.statusCode === 200) {
       console.log('success')
-      res.send('success, user added to mail chimp')
+      res.send(response.statusCode)
 
       //   res.render('success', {
       //     message: 'Thanks for subscribing to our newsletter',
@@ -86,7 +86,7 @@ app.post('/newsletter', function (req, res) {
       //   })
     } else {
       console.log('error')
-      res.send('error, unable to complete request')
+      res.send(response.statusCode)
       //   res.render('success', {
       //     message: 'Sorry! unable to subscribe to our news letter',
       //     emoji: 'fa fa-thumbs-down',
