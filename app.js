@@ -97,6 +97,11 @@ app.post('/newsletter', function (req, res) {
   request.end()
 })
 
-app.listen(process.env.Port || '7777', () => {
-  console.log('server runneer at port 7777')
+let port = process.env.PORT
+if (port == null || port == '') {
+  port = 5000
+}
+
+app.listen(port, function () {
+  console.log('server running at port ' + port)
 })
