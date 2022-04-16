@@ -7,6 +7,7 @@ const cors = require('cors')
 const app = express()
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
+app.use(Cors())
 
 app.post('/newsletter-signup', function (req, res) {
   const email = req.body.email_reg
