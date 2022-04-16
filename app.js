@@ -10,7 +10,9 @@ app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
 app.get('/', (req, res) => {
-  res.send('BLARKMATE SERVER IS RUNNING ... ')
+  res.send(
+    '<form method="post" action="/newsletter"><input type="text" name="email" > <input type="submit" value="Submit"> </form>',
+  )
 })
 
 // app.post('/newsletter-signup', function (req, res) {
@@ -51,55 +53,51 @@ app.get('/', (req, res) => {
 //   request.end()
 // })
 
-// app.post('/newsletter', function (req, res) {
-//   const email = req.body.email
-//   const data = {
-//     members: [
-//       {
-//         email_address: email,
-//         status: 'subscribed',
-//         // merge_fields: {
-//         // 	FNAME: fName,
-//         // 	LNAME: lName
-//         // }
-//       },
-//     ],
-//   }
+app.post('/newsletter', function (req, res) {
+  const email = req.body.email
+  const data = {
+    members: [
+      {
+        email_address: email,
+        status: 'subscribed',
+      },
+    ],
+  }
 
-//   const jsonData = JSON.stringify(data)
+  const jsonData = JSON.stringify(data)
 
-//   let url = process.env.AUDIENCE_ID
-//   let options = {
-//     method: 'POST',
-//     auth: process.env.MAILCHIMP_API,
-//   }
+  let url = process.env.AUDIENCE_ID
+  let options = {
+    method: 'POST',
+    auth: process.env.MAILCHIMP_API,
+  }
 
-//   const request = https.request(url, options, function (response) {
-//     if (response.statusCode === 200) {
-//       console.log('success')
-//       res.send('success, user added to mail chimp')
+  const request = https.request(url, options, function (response) {
+    if (response.statusCode === 200) {
+      console.log('success')
+      res.send('success, user added to mail chimp')
 
-//       //   res.render('success', {
-//       //     message: 'Thanks for subscribing to our newsletter',
-//       //     emoji: 'fas fa-thumbs-up',
-//       //     title: ' Success Page',
-//       //   })
-//     } else {
-//       console.log('error')
-//       res.send('error, unable to complete request')
-//       //   res.render('success', {
-//       //     message: 'Sorry! unable to subscribe to our news letter',
-//       //     emoji: 'fa fa-thumbs-down',
-//       //     title: 'Error Page',
-//       //   })
-//     }
+      //   res.render('success', {
+      //     message: 'Thanks for subscribing to our newsletter',
+      //     emoji: 'fas fa-thumbs-up',
+      //     title: ' Success Page',
+      //   })
+    } else {
+      console.log('error')
+      res.send('error, unable to complete request')
+      //   res.render('success', {
+      //     message: 'Sorry! unable to subscribe to our news letter',
+      //     emoji: 'fa fa-thumbs-down',
+      //     title: 'Error Page',
+      //   })
+    }
 
-//     console.log(response.statusCode)
-//   })
+    console.log(response.statusCode)
+  })
 
-//   request.write(jsonData)
-//   request.end()
-// })
+  request.write(jsonData)
+  request.end()
+})
 
 let port = process.env.PORT
 if (port == null || port == '') {
