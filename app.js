@@ -83,20 +83,18 @@ app.post('/login', function (req, res) {
 
   passport.authenticate('local', function (err, user, info) {
     if (err) {
-      res.send(err)
+      res.send({ status: 401, reason: err })
+      return
+    } else {
+      req.logIn(user, function (error, resp) {
+        //This creates a log in session
+        if (error) {
+          res.send({ status: 401, reason: 'Invalid username or password' })
+        } else {
+          res.send({ status: 200 })
+        }
+      })
     }
-    if (!user) {
-      res.send(err, user, info)
-    }
-
-    req.logIn(user, function (err, resp) {
-      //This creates a log in session
-      if (err) {
-        res.send(err)
-      } else {
-        res.send(resp)
-      }
-    })
   })(req, res)
 })
 
@@ -105,7 +103,7 @@ app.get('/logout', function (req, res) {
   res.redirect('/login')
 })
 
-app.post('/newsletter-signup', function (req, res) {
+app.post('/newsletter-reg', function (req, res) {
   const email = req.body.email_reg
   const data = {
     members: [
@@ -129,9 +127,14 @@ app.post('/newsletter-signup', function (req, res) {
 
   const request = https.request(url, options, function (response) {
     if (response.statusCode === 200) {
-      res.send(response.statusCode)
+      res.send({ status: response.statusCode })
+      console.log(response.statusCode)
     } else {
-      res.send(response.statusCode)
+      console.log(response.statusCode)
+      res.send({
+        status: response.statusCode,
+        reason: 'Unable to add user to newsletter',
+      })
     }
   })
 
@@ -164,9 +167,14 @@ app.post('/newsletter', function (req, res) {
 
   const request = https.request(url, options, function (response) {
     if (response.statusCode === 200) {
-      res.send(response.statusCode)
+      res.send({ status: response.statusCode })
+      console.log(response.statusCode)
     } else {
-      res.send(response.statusCode)
+      console.log(response.statusCode)
+      res.send({
+        status: response.statusCode,
+        reason: 'Unable to add user to newsletter',
+      })
     }
   })
 
@@ -182,8 +190,9 @@ app.post('/register', function (req, res) {
     req.body.password,
     function (err) {
       if (err) {
-        console.log(err)
-        res.send(401)
+        console.log('err')
+        res.send({ status: 401, reason: err })
+        // res.send(401)
         // res.render('register', {
         //   errorMsg: 'Error ! User registration failed.',
         //   title: 'Register',
@@ -204,7 +213,7 @@ app.post('/register', function (req, res) {
             function (err) {
               if (!err) {
                 console.log('registered')
-                res.send(200)
+                res.send({ status: 200 })
 
                 // // LOG IN USER AFTER REGISTRATION
                 // const user = new User({
@@ -233,7 +242,7 @@ app.post('/register', function (req, res) {
                 //   })
                 // })(req, res)
               } else {
-                res.send(401)
+                res.send({ status: 401, reason: err })
               }
             },
           )
