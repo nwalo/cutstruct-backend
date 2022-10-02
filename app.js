@@ -9,8 +9,9 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const mongoose = require("mongoose");
 const findOrCreate = require("mongoose-findorcreate");
+const jwt = require("jsonwebtoken");
 
-// INITIALIZE MALWARES
+// INITIALIZE MIDDLEWARES
 
 const app = express();
 app.use(express.json());
@@ -51,8 +52,6 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   firstName: String,
   role: String,
-  country: String,
-  phone: Number,
   users: [],
   projects: [],
 });
@@ -88,9 +87,29 @@ passport.deserializeUser(function (id, done) {
   });
 });
 
+// End Points ----------------------------------------------------------
+
 app.get("/", (req, res) => {
   res.send("Cutstruct server is running ... ");
 });
+
+const verify = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader;
+    jwt.verify(token, "secretkey", (err, user) => {
+      if (err) {
+        return res.status(403).json("token is not valid");
+      }
+      req.user = user;
+
+      console.log("user" + req.user);
+      next();
+    });
+  } else {
+    res.send({ status: 401, response: "Unauthorized user" });
+  }
+};
 
 app.get("/admin", (req, res) => {
   res.send("Cutstruct Admin end point ... ");
@@ -110,9 +129,24 @@ app.post("/login", function (req, res) {
       req.logIn(user, function (error, resp) {
         //This creates a log in session
         if (error) {
-          res.send({ status: 401, response: "Invalid username or password" });
+          console.log(error);
+          res.send({ status: 404, response: "Invalid username or password" });
         } else {
-          res.send({ status: 200, response: "Logged in..." });
+          const accessToken = jwt.sign(
+            { id: user.id, username: user.username },
+            "secretkey"
+          );
+          const data = {
+            userId: user.id,
+            lastName: user.lastName,
+            accessToken,
+            status: 200,
+          };
+          res.json(data);
+
+          // const data = user.id;
+
+          // res.send({ status: 200, data, response: "Logged in..." });
         }
       });
     }
@@ -120,12 +154,9 @@ app.post("/login", function (req, res) {
 });
 
 app.get("/logout", function (req, res) {
-  req.logout((err) => {
-    err
-      ? res.send({ status: 404, response: err })
-      : res.send({ status: 200, response: "Logged out..." });
-  });
-  // res.redirect("/login");
+  console.log("out");
+  req.logout();
+  res.send({ status: 400, response: "Logged out..." });
 });
 
 app.post("/register", function (req, res) {
@@ -188,7 +219,9 @@ app.post("/register", function (req, res) {
 
 // Endpoint for Users -----------------------------------------------
 
-app.get("/users", function (req, res) {
+app.post("/getUsers", function (req, res) {
+  // console.log(req.user);
+  // if (req.user) {
   User.find({}, function (err, users) {
     if (err) {
       res.send({ status: 404, response: err });
@@ -196,6 +229,7 @@ app.get("/users", function (req, res) {
       res.send({ status: 200, data: users });
     }
   });
+  // }
 });
 
 app.post("/users", function (req, res) {
@@ -218,8 +252,6 @@ app.post("/users", function (req, res) {
               firstName: _.capitalize(req.body.firstName),
               lastName: _.capitalize(req.body.lastName),
               role: "User",
-              country: _.capitalize(req.body.country),
-              phone: req.body.phone,
             },
             function (err) {
               if (!err) {
@@ -227,7 +259,6 @@ app.post("/users", function (req, res) {
                   if (err) {
                     res.send({ status: 404, response: err });
                   } else {
-                    console.log(admin);
                     let newUser = {
                       username: req.body.username,
                       firstName: _.capitalize(req.body.firstName),
@@ -249,37 +280,6 @@ app.post("/users", function (req, res) {
                     });
                   }
                 });
-
-                // User.findById({ _id: projectUserId }, function (err, user) {
-                //   User.findOneAndUpdate(
-                //     {
-                //       _id: req.user,
-                //       username: req.user.username,
-                //       role: "Admin",
-                //       // "projects.users": currentCourse.title,
-                //       // "course.$[outer].modules.$[inner].lesson": currentLesson,
-                //     },
-                //     {
-                //       $push: {
-                //         "projects.$[first].users": user,
-                //       },
-                //     },
-                //     {
-                //       arrayFilters: [{ "first.company": projectCompany }],
-                //     },
-                //     function (err, found) {
-                //       if (err) {
-                //         res.send({ status: 404, response: err });
-                //       } else {
-                //         console.log("found");
-                //         res.send({
-                //           status: 200,
-                //           response: "User has been added to project",
-                //         });
-                //       }
-                //     }
-                //   );
-                // });
               } else {
                 res.send({ status: 404, response: err });
               }
@@ -291,122 +291,124 @@ app.post("/users", function (req, res) {
   );
 });
 
-app.put("/users", function (req, res) {
-  if (req.isAuthenticated()) {
-    User.updateOne(
-      {
-        username: req.body.username,
-      },
-      {
-        firstName: _.capitalize(req.body.firstName),
-        lastName: _.capitalize(req.body.lastName),
-        role: "User",
-        country: _.capitalize(req.body.country),
-        phone: req.body.phone,
-      },
-      function (err) {
-        if (!err) {
-          res.send({ status: 200, response: "Updated User" });
-        } else {
-          res.send({ status: 404, response: err });
-        }
+app.put("/users", verify, function (req, res) {
+  // //if (req.isAuthenticated()) {
+  User.updateOne(
+    {
+      username: req.body.username,
+    },
+    {
+      firstName: _.capitalize(req.body.firstName),
+      lastName: _.capitalize(req.body.lastName),
+      role: "User",
+      country: _.capitalize(req.body.country),
+      phone: req.body.phone,
+    },
+    function (err) {
+      if (!err) {
+        res.send({ status: 200, response: "Updated User" });
+      } else {
+        res.send({ status: 404, response: err });
       }
-    );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  );
+  // } else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  // }
 });
 
 app.delete("/users", function (req, res) {
   var userId = req.body.userId;
-  if (req.isAuthenticated()) {
-    User.findOneAndUpdate(
-      {
-        _id: req.user,
-      },
-      {
-        $pull: {
-          users: {
-            _id: userId,
-          },
+  //if (req.isAuthenticated()) {
+  User.findOneAndUpdate(
+    {
+      _id: req.user,
+    },
+    {
+      $pull: {
+        users: {
+          _id: userId,
         },
       },
-      {
-        useFindAndModify: false,
-      },
-      function (err, found) {
-        if (err) {
-          res.send({ status: 404, response: err });
-        } else {
-          res.send({ status: 200, response: "User deleted..." });
-        }
+    },
+    {
+      useFindAndModify: false,
+    },
+    function (err, found) {
+      if (err) {
+        res.send({ status: 404, response: err });
+      } else {
+        res.send({ status: 200, response: "User deleted..." });
       }
-    );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  );
+  ////} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 // Projects ----------------------------------------------------------
 
-app.get("/projects", function (req, res) {
-  if (req.isAuthenticated()) {
-    User.findById(req.user, function (err, users) {
-      if (err) {
-        res.send({ status: 404, response: err });
-      } else {
-        console.log(users);
-        let projects = users.projects;
-        res.send({ status: 200, data: projects });
-      }
-    });
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+app.post("/getProjects", function (req, res) {
+  //if (req.isAuthenticated()) {
+  console.log(req.body.userId);
+  //if (req.isAuthenticated()) {
+  User.findOne({ _id: req.body.userId }, function (err, users) {
+    if (err) {
+      res.send({ status: 404, response: err });
+    } else {
+      // console.log(users);
+      let projects = users.projects;
+      return res.send({ status: 200, data: projects });
+    }
+  });
+  ////} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 app.post("/projects", function (req, res) {
   let project = {
     key:
-      _.capitalize(req.body.name).replaceAll(" ", "-") +
+      _.capitalize(req.body.projectName).replaceAll(" ", "-") +
       "-" +
       _.capitalize(req.body.company).replaceAll(" ", "-"),
-    name: req.body.name,
-    company: req.body.company,
+    name: _.capitalize(req.body.projectName),
+    company: _.capitalize(req.body.company),
     users: [],
     tasks: [],
   };
 
-  if (req.isAuthenticated()) {
-    User.findById(req.user, function (err, users) {
-      if (err) {
-        res.send({ status: 404, response: err });
-      } else {
-        let newProject = users.projects.find((i) => {
-          return i.name == project.name && i.company == project.company;
+  //if (req.isAuthenticated()) {
+  User.findById(req.body.userId, function (err, users) {
+    if (err) {
+      res.send({ status: 404, response: err });
+    } else {
+      let newProject = users.projects.find((i) => {
+        return i.name == project.projectName && i.company == project.company;
+      });
+      // console.log(users);
+      if (!newProject) {
+        users.projects.push(project);
+        users.save(function (err) {
+          if (err) {
+            console.log("err");
+            res.send({ status: 504, response: err });
+          } else {
+            res.send({ status: 200, response: "Project has been added" });
+          }
         });
-        // console.log(users);
-        if (!newProject) {
-          users.projects.push(project);
-          users.save(function (err) {
-            if (err) {
-              console.log("err");
-              res.send({ status: 504, response: err });
-            } else {
-              res.send({ status: 200, response: "Project has been added" });
-            }
-          });
-        } else {
-          res.send({
-            status: 404,
-            response: "Project can not be created because it exist",
-          });
-        }
+      } else {
+        res.send({
+          status: 404,
+          response: "Project can not be created because it exist",
+        });
       }
-    });
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  });
+  ////} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 app.post("/projects/user", function (req, res) {
@@ -414,40 +416,38 @@ app.post("/projects/user", function (req, res) {
   let projectCompany = req.body.projectCompany;
   let projectUserId = req.body.projectUserId;
 
-  if (req.isAuthenticated()) {
-    User.findById({ _id: projectUserId }, function (err, user) {
-      User.findOneAndUpdate(
-        {
-          _id: req.user,
-          username: req.user.username,
-          role: "Admin",
-          // "projects.users": currentCourse.title,
-          // "course.$[outer].modules.$[inner].lesson": currentLesson,
+  //if (req.isAuthenticated()) {
+  User.findById({ _id: projectUserId }, function (err, user) {
+    User.findOneAndUpdate(
+      {
+        _id: req.projectUserId,
+        // "projects.users": currentCourse.title,
+        // "course.$[outer].modules.$[inner].lesson": currentLesson,
+      },
+      {
+        $push: {
+          "projects.$[first].users": user,
         },
-        {
-          $push: {
-            "projects.$[first].users": user,
-          },
-        },
-        {
-          arrayFilters: [{ "first.company": projectCompany }],
-        },
-        function (err, found) {
-          if (err) {
-            res.send({ status: 404, response: err });
-          } else {
-            console.log("found");
-            res.send({
-              status: 200,
-              response: "User has been added to project",
-            });
-          }
+      },
+      {
+        arrayFilters: [{ "first.company": projectCompany }],
+      },
+      function (err, found) {
+        if (err) {
+          res.send({ status: 404, response: err });
+        } else {
+          console.log("found");
+          res.send({
+            status: 200,
+            response: "User has been added to project",
+          });
         }
-      );
-    });
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+      }
+    );
+  });
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 app.delete("/projects/user", function (req, res) {
@@ -455,68 +455,68 @@ app.delete("/projects/user", function (req, res) {
   let projectCompany = req.body.projectCompany;
   let projectUserId = req.body.projectUserId;
 
-  if (req.isAuthenticated()) {
-    User.findById({ _id: projectUserId }, function (err, user) {
-      User.findOneAndUpdate(
-        {
-          _id: req.user,
-          username: req.user.username,
-          role: "Admin",
-        },
-        {
-          $pull: {
-            "projects.$[first].users": user,
-          },
-        },
-        {
-          arrayFilters: [{ "first.company": projectCompany }],
-        },
-        function (err, found) {
-          if (err) {
-            res.send({ status: 404, response: err });
-          } else {
-            res.send({
-              status: 200,
-              response: "User has been delete from project",
-            });
-          }
-        }
-      );
-    });
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
-});
-
-app.delete("/projects", function (req, res) {
-  let projectkey = req.body.projectkey;
-
-  if (req.isAuthenticated()) {
+  //if (req.isAuthenticated()) {
+  User.findById({ _id: projectUserId }, function (err, user) {
     User.findOneAndUpdate(
       {
         _id: req.user,
+        username: req.user.username,
+        role: "Admin",
       },
       {
         $pull: {
-          projects: {
-            key: projectkey,
-          },
+          "projects.$[first].users": user,
         },
       },
       {
-        useFindAndModify: false,
+        arrayFilters: [{ "first.company": projectCompany }],
       },
       function (err, found) {
         if (err) {
           res.send({ status: 404, response: err });
         } else {
-          res.send({ status: 200, response: "Project has been deleted" });
+          res.send({
+            status: 200,
+            response: "User has been delete from project",
+          });
         }
       }
     );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+  });
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
+});
+
+app.delete("/projects", function (req, res) {
+  let projectkey = req.body.projectkey;
+
+  //if (req.isAuthenticated()) {
+  User.findOneAndUpdate(
+    {
+      _id: req.user,
+    },
+    {
+      $pull: {
+        projects: {
+          key: projectkey,
+        },
+      },
+    },
+    {
+      useFindAndModify: false,
+    },
+    function (err, found) {
+      if (err) {
+        res.send({ status: 404, response: err });
+      } else {
+        res.send({ status: 200, response: "Project has been deleted" });
+      }
+    }
+  );
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 app.post("/task", function (req, res) {
@@ -528,60 +528,74 @@ app.post("/task", function (req, res) {
 
   console.log(task);
 
-  if (req.isAuthenticated()) {
-    // User.findById({ _id: projectUserId }, function (err, user) {
-    User.findOneAndUpdate(
-      {
-        _id: req.user,
-        username: req.user.username,
-        role: "Admin",
+  //if (req.isAuthenticated()) {
+  // User.findById({ _id: projectUserId }, function (err, user) {
+  User.findOneAndUpdate(
+    {
+      _id: req.body.userId,
+    },
+    {
+      $push: {
+        "projects.$[first].tasks": task,
       },
-      {
-        $push: {
-          "projects.$[first].tasks": task,
-        },
-        upsert: true,
-      },
-      {
-        arrayFilters: [{ "first.company": projectCompany }],
-      },
-      function (err, found) {
-        if (err) {
-          res.send({ status: 404, response: err });
-        } else {
-          res.send({
-            status: 200,
-            response: "New Task has been added to project",
-          });
-        }
-      }
-    );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
-});
-
-app.get("/project/task/", function (req, res) {
-  let projectKey = req.query.key;
-
-  if (req.isAuthenticated()) {
-    User.findById(req.user, function (err, users) {
+      upsert: true,
+    },
+    {
+      arrayFilters: [{ "first.company": projectCompany }],
+    },
+    function (err, found) {
       if (err) {
         res.send({ status: 404, response: err });
       } else {
-        // console.log(users.projects);
-        let project = users.projects.filter((i) => i.key == projectKey);
-        console.log(project);
-        project.forEach((p) => {
-          let tasks = p.tasks;
-
-          res.send({ status: 200, data: tasks });
+        res.send({
+          status: 200,
+          response: "New Task has been added to project",
         });
       }
-    });
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  );
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
+});
+
+app.post("/project/getTask", function (req, res) {
+  let company = req.body.company;
+
+  console.log(req.body);
+  User.findOne({ _id: req.body.userId }, function (err, users) {
+    if (err) {
+      res.send({ status: 404, response: err });
+    } else {
+      console.log(users.projects);
+      let project = users.projects.filter((i) => i.company == company);
+      console.log(project);
+      project.forEach((p) => {
+        let tasks = p.tasks;
+
+        res.send({ status: 200, data: tasks });
+      });
+    }
+  });
+});
+
+app.post("/project/getUser", function (req, res) {
+  let company = req.body.company;
+
+  User.findOne({ _id: req.body.userId }, function (err, users) {
+    if (err) {
+      res.send({ status: 404, response: err });
+    } else {
+      console.log(users.projects);
+      let project = users.projects.filter((i) => i.company == company);
+      console.log(project);
+      project.forEach((p) => {
+        let tasks = p.users;
+
+        res.send({ status: 200, data: tasks });
+      });
+    }
+  });
 });
 
 app.post("/task/status", function (req, res) {
@@ -591,39 +605,39 @@ app.post("/task/status", function (req, res) {
 
   console.log(projectCompany, task, status);
 
-  if (req.isAuthenticated()) {
-    User.findOneAndUpdate(
-      {
-        _id: req.user,
-        username: req.user.username,
-        role: "Admin",
+  //if (req.isAuthenticated()) {
+  User.findOneAndUpdate(
+    {
+      _id: req.user,
+      username: req.user.username,
+      role: "Admin",
+    },
+    {
+      $set: {
+        "projects.$[first].tasks.$[second].status": status,
       },
-      {
-        $set: {
-          "projects.$[first].tasks.$[second].status": status,
-        },
-        upsert: true,
-      },
-      {
-        arrayFilters: [
-          { "first.company": projectCompany },
-          { "second.task": task },
-        ],
-      },
-      function (err, found) {
-        if (err) {
-          res.send({ status: 404, response: err });
-        } else {
-          res.send({
-            status: 200,
-            response: "Updated Task Status to project",
-          });
-        }
+      upsert: true,
+    },
+    {
+      arrayFilters: [
+        { "first.company": projectCompany },
+        { "second.task": task },
+      ],
+    },
+    function (err, found) {
+      if (err) {
+        res.send({ status: 404, response: err });
+      } else {
+        res.send({
+          status: 200,
+          response: "Updated Task Status to project",
+        });
       }
-    );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  );
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 // Delete Task
@@ -633,34 +647,34 @@ app.delete("/project/task", function (req, res) {
   let projectkey = req.body.projectkey;
   let task = { task: req.body.task, status: req.body.status };
 
-  if (req.isAuthenticated()) {
-    User.findOneAndUpdate(
-      {
-        _id: req.user,
-        role: "Admin",
+  //if (req.isAuthenticated()) {
+  User.findOneAndUpdate(
+    {
+      _id: req.user,
+      role: "Admin",
+    },
+    {
+      $pull: {
+        "projects.$[first].tasks": task,
       },
-      {
-        $pull: {
-          "projects.$[first].tasks": task,
-        },
-      },
-      {
-        arrayFilters: [{ "first.key": projectkey }],
-      },
-      function (err, found) {
-        if (err) {
-          res.send({ status: 404, response: err });
-        } else {
-          res.send({
-            status: 200,
-            response: "Task has been deleted",
-          });
-        }
+    },
+    {
+      arrayFilters: [{ "first.key": projectkey }],
+    },
+    function (err, found) {
+      if (err) {
+        res.send({ status: 404, response: err });
+      } else {
+        res.send({
+          status: 200,
+          response: "Task has been deleted",
+        });
       }
-    );
-  } else {
-    res.send({ status: 401, response: "Unauthorize user" });
-  }
+    }
+  );
+  //} else {
+  //   res.send({ status: 401, response: "Unauthorize user" });
+  //  }
 });
 
 let port = process.env.PORT;
