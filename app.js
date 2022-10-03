@@ -25,6 +25,11 @@ app.use(
     saveUninitialized: false,
   })
 );
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next();
+});
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -114,11 +119,11 @@ const verify = (req, res, next) => {
   }
 };
 
-app.get("/admin", (req, res) => {
+app.get("/admin", cors(), (req, res) => {
   res.send("Cutstruct Admin end point ... ");
 });
 
-app.post("/login", function (req, res) {
+app.post("/login", cors(), function (req, res) {
   const user = new User({
     username: req.body.username,
     password: req.body.password,
@@ -158,7 +163,7 @@ app.post("/login", function (req, res) {
   })(req, res);
 });
 
-app.get("/logout", function (req, res) {
+app.get("/logout", cors(), function (req, res) {
   console.log("out");
   req.logout();
   res.send({ status: 400, response: "Logged out..." });
@@ -235,7 +240,7 @@ app.post("/register", function (req, res) {
 
 // Endpoint for Users -----------------------------------------------
 
-app.post("/getUsers", function (req, res) {
+app.post("/getUsers", cors(), function (req, res) {
   // console.log(req.user);
   // if (req.user) {
   User.find({ role: "User" }, function (err, users) {
@@ -248,7 +253,7 @@ app.post("/getUsers", function (req, res) {
   // }
 });
 
-app.post("/users", function (req, res) {
+app.post("/users", cors(), function (req, res) {
   User.register(
     {
       username: req.body.username,
@@ -308,7 +313,7 @@ app.post("/users", function (req, res) {
   );
 });
 
-app.put("/users", verify, function (req, res) {
+app.put("/users", cors(), function (req, res) {
   // //if (req.isAuthenticated()) {
   User.updateOne(
     {
@@ -334,7 +339,7 @@ app.put("/users", verify, function (req, res) {
   // }
 });
 
-app.post("/deleteusers", function (req, res) {
+app.post("/deleteusers", cors(), function (req, res) {
   var userId = req.body.userId;
   var adminId = req.body.adminId;
 
@@ -358,7 +363,7 @@ app.post("/deleteusers", function (req, res) {
   );
 });
 
-app.post("/deleteprousers", function (req, res) {
+app.post("/deleteprousers", cors(), function (req, res) {
   var userId = req.body.userId;
   var adminId = req.body.adminId;
   //if (req.isAuthenticated()) {
@@ -389,7 +394,7 @@ app.post("/deleteprousers", function (req, res) {
 
 // Projects ----------------------------------------------------------
 
-app.post("/getProjects", function (req, res) {
+app.post("/getProjects", cors(), function (req, res) {
   //if (req.isAuthenticated()) {
   console.log(req.body.userId);
   //if (req.isAuthenticated()) {
@@ -407,7 +412,7 @@ app.post("/getProjects", function (req, res) {
   //  }
 });
 
-app.post("/projects", function (req, res) {
+app.post("/projects", cors(), function (req, res) {
   let project = {
     key:
       _.capitalize(req.body.projectName).replaceAll(" ", "-") +
@@ -451,7 +456,7 @@ app.post("/projects", function (req, res) {
   //  }
 });
 
-app.post("/projects/user", function (req, res) {
+app.post("/projects/user", cors(), function (req, res) {
   let projectId = req.body.projectId;
   let projectCompany = req.body.projectCompany;
   let projectUserId = req.body.projectUserId;
