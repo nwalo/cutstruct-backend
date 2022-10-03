@@ -30,15 +30,18 @@ app.use(passport.session());
 
 // DATABASE CONNECTION - MONGODB
 
-// mongoose.connect(process.env.MONGO_URL, {
+mongoose.connect(
+  "mongodb+srv://Admin-Nwalo:nobicious97@custruct.qm1vmvh.mongodb.net/custructDb?retryWrites=true&w=majority",
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
+
+// mongoose.connect("mongodb://localhost:27017/cutstructDB", {
 //   useNewUrlParser: true,
 //   useUnifiedTopology: true,
-// })
-
-mongoose.connect("mongodb://localhost:27017/cutstructDB", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// });
 
 // SCHEMA DEFINITIONS
 
@@ -139,6 +142,7 @@ app.post("/login", function (req, res) {
           const data = {
             userId: user.id,
             lastName: user.lastName,
+            firstName: user.firstName,
             accessToken,
             status: 200,
           };
@@ -202,7 +206,17 @@ app.post("/register", function (req, res) {
                     if (err) {
                       res.send({ status: 401, response: err });
                     } else {
-                      res.send({ status: 200, response: "Registered" });
+                      let data = {
+                        userId: user.id,
+                        lastName: user.lastName,
+                        firstName: user.firstName,
+                      };
+                      res.send({
+                        status: 200,
+                        response: "Registered",
+                        data,
+                      });
+                      // res.json(data);
                     }
                   });
                 })(req, res);
