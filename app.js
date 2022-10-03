@@ -30,18 +30,18 @@ app.use(passport.session());
 
 // DATABASE CONNECTION - MONGODB
 
-mongoose.connect(
-  "mongodb+srv://Admin-Nwalo:nobicious97@custruct.qm1vmvh.mongodb.net/custructDb?retryWrites=true&w=majority",
-  {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }
-);
+// mongoose.connect(
+//   "mongodb+srv://Admin-Nwalo:nobicious97@custruct.qm1vmvh.mongodb.net/custructDb?retryWrites=true&w=majority",
+//   {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   }
+// );
 
-// mongoose.connect("mongodb://localhost:27017/cutstructDB", {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// });
+mongoose.connect("mongodb://localhost:27017/cutstructDB", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
 // SCHEMA DEFINITIONS
 
@@ -144,6 +144,7 @@ app.post("/login", function (req, res) {
             lastName: user.lastName,
             firstName: user.firstName,
             accessToken,
+            role: user.role,
             status: 200,
           };
           res.json(data);
@@ -210,6 +211,7 @@ app.post("/register", function (req, res) {
                         userId: user.id,
                         lastName: user.lastName,
                         firstName: user.firstName,
+                        role: user.role,
                       };
                       res.send({
                         status: 200,
@@ -236,7 +238,7 @@ app.post("/register", function (req, res) {
 app.post("/getUsers", function (req, res) {
   // console.log(req.user);
   // if (req.user) {
-  User.find({}, function (err, users) {
+  User.find({ role: "User" }, function (err, users) {
     if (err) {
       res.send({ status: 404, response: err });
     } else {
@@ -269,7 +271,7 @@ app.post("/users", function (req, res) {
             },
             function (err) {
               if (!err) {
-                User.findById(req.user, function (err, admin) {
+                User.findOne({ _id: req.body.adminId }, function (err, admin) {
                   if (err) {
                     res.send({ status: 404, response: err });
                   } else {
@@ -280,6 +282,7 @@ app.post("/users", function (req, res) {
                       country: _.capitalize(req.body.country),
                       phone: req.body.phone,
                     };
+
                     admin.users.push(newUser);
                     admin.save(function (err) {
                       if (err) {
@@ -331,17 +334,42 @@ app.put("/users", verify, function (req, res) {
   // }
 });
 
-app.delete("/users", function (req, res) {
+app.post("/deleteusers", function (req, res) {
   var userId = req.body.userId;
+  var adminId = req.body.adminId;
+
+  console.log(userId);
+  //if (req.isAuthenticated()) {
+  User.findOneAndDelete(
+    {
+      _id: userId,
+    },
+    {
+      useFindAndModify: true,
+    },
+    function (err, found) {
+      if (err) {
+        res.send({ status: 404, response: err });
+      } else {
+        console.log("del");
+        res.send({ status: 200, response: "User deleted..." });
+      }
+    }
+  );
+});
+
+app.post("/deleteprousers", function (req, res) {
+  var userId = req.body.userId;
+  var adminId = req.body.adminId;
   //if (req.isAuthenticated()) {
   User.findOneAndUpdate(
     {
-      _id: req.user,
+      _id: adminId,
     },
     {
       $pull: {
         users: {
-          _id: userId,
+          username: userId,
         },
       },
     },
@@ -352,13 +380,11 @@ app.delete("/users", function (req, res) {
       if (err) {
         res.send({ status: 404, response: err });
       } else {
+        console.log("del");
         res.send({ status: 200, response: "User deleted..." });
       }
     }
   );
-  ////} else {
-  //   res.send({ status: 401, response: "Unauthorize user" });
-  //  }
 });
 
 // Projects ----------------------------------------------------------
@@ -430,27 +456,49 @@ app.post("/projects/user", function (req, res) {
   let projectCompany = req.body.projectCompany;
   let projectUserId = req.body.projectUserId;
 
+  let project = req.body.project;
+  let key, name, company, users, tasks;
+
+  console.log(project);
+  project.forEach((i) => {
+    key = i.key;
+    name = i.name;
+    company = i.company;
+    users = i.users;
+    tasks = i.tasks;
+  });
+
+  // console.log(company, name, tasks);
+
   //if (req.isAuthenticated()) {
-  User.findById({ _id: projectUserId }, function (err, user) {
+  User.findById({ _id: req.body.user }, function (err, user) {
+    console.log(user);
     User.findOneAndUpdate(
       {
-        _id: req.projectUserId,
-        // "projects.users": currentCourse.title,
-        // "course.$[outer].modules.$[inner].lesson": currentLesson,
+        _id: req.body.userId,
       },
       {
         $push: {
           "projects.$[first].users": user,
         },
+        upsert: true,
       },
       {
-        arrayFilters: [{ "first.company": projectCompany }],
+        arrayFilters: [
+          {
+            "first.key": key,
+            "first.users": users,
+            "first.tasks": tasks,
+            "first.name": name,
+            "first.company": company,
+          },
+        ],
       },
       function (err, found) {
         if (err) {
           res.send({ status: 404, response: err });
         } else {
-          console.log("found");
+          console.log("added to pro");
           res.send({
             status: 200,
             response: "User has been added to project",
@@ -539,11 +587,18 @@ app.post("/task", function (req, res) {
     task: req.body.task,
     status: "Doing",
   };
+  let project = req.body.project;
+  let key, name, company, users, tasks;
+  project.forEach((i) => {
+    console.log(i);
+    key = i.key;
+    name = i.name;
+    company = i.company;
+    users = i.users;
+    tasks = i.tasks;
+  });
 
-  console.log(task);
-
-  //if (req.isAuthenticated()) {
-  // User.findById({ _id: projectUserId }, function (err, user) {
+  // console.log(tasks, name);
   User.findOneAndUpdate(
     {
       _id: req.body.userId,
@@ -555,12 +610,21 @@ app.post("/task", function (req, res) {
       upsert: true,
     },
     {
-      arrayFilters: [{ "first.company": projectCompany }],
+      arrayFilters: [
+        {
+          "first.key": key,
+          "first.users": users,
+          "first.tasks": tasks,
+          "first.name": name,
+          "first.company": company,
+        },
+      ],
     },
     function (err, found) {
       if (err) {
         res.send({ status: 404, response: err });
       } else {
+        console.log("ok");
         res.send({
           status: 200,
           response: "New Task has been added to project",
@@ -576,18 +640,17 @@ app.post("/task", function (req, res) {
 app.post("/project/getTask", function (req, res) {
   let company = req.body.company;
 
-  console.log(req.body);
   User.findOne({ _id: req.body.userId }, function (err, users) {
     if (err) {
       res.send({ status: 404, response: err });
     } else {
-      console.log(users.projects);
+      // console.log(users.projects);
       let project = users.projects.filter((i) => i.company == company);
       console.log(project);
       project.forEach((p) => {
         let tasks = p.tasks;
 
-        res.send({ status: 200, data: tasks });
+        res.send({ status: 200, data: tasks, project: project });
       });
     }
   });
@@ -606,7 +669,7 @@ app.post("/project/getUser", function (req, res) {
       project.forEach((p) => {
         let tasks = p.users;
 
-        res.send({ status: 200, data: tasks });
+        res.send({ status: 200, data: tasks, project: project });
       });
     }
   });
